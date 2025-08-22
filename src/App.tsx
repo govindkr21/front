@@ -62,7 +62,7 @@ function App() {
     }));
   };
 
-  const API_BASE = import.meta.env.VITE_API_URL || "https://api.pulseandpause.in";
+  const API_BASE = import.meta.env.VITE_API_URL || "/api";
   const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_your_key_here';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,7 +86,7 @@ function App() {
       const orderRes = await fetch(`${API_BASE}/api/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: 9900, registrationId }),
+        body: JSON.stringify({ amount: 99, registrationId }),
       });
       const order = await orderRes.json();
       if (!orderRes.ok || !order.success || !order.id) {
