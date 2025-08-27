@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, Users, Star, CheckCircle, User, Phone, Mail, MapPin, Briefcase, Cake } from 'lucide-react';
 
 declare global {
@@ -54,6 +54,22 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // ✅ Always read backend + key from env (set these in Vercel → Settings → Environment Variables)
+  const API_BASE = import.meta.env.VITE_API_URL as string; // e.g. https://api.pulseandpause.in
+  const RZP_KEY = (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || "";
+
+  // Load Razorpay SDK if not present
+  useEffect(() => {
+    if (window.Razorpay) return;
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.async = true;
+    document.body.appendChild(s);
+    return () => {
+      // optional: don’t remove to keep cached
+    };
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -62,20 +78,18 @@ function App() {
     }));
   };
 
- // Always point to backend, not frontend
-// Decide API base dynamically
-// Always point to backend, not frontend
-const API_BASE = "https://api.pulseandpause.in";
-
-
-const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key_here";
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
+      if (!API_BASE) {
+        throw new Error('VITE_API_URL is not set. Add it in your frontend .env / Vercel Env Vars.');
+      }
+      if (!RZP_KEY) {
+        throw new Error('VITE_RAZORPAY_KEY_ID is not set. Add it in your frontend .env / Vercel Env Vars.');
+      }
+
       // 1) Save registration
       const regRes = await fetch(`${API_BASE}/api/register`, {
         method: 'POST',
@@ -83,24 +97,24 @@ const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key_here"
         body: JSON.stringify(formData),
       });
       const regData = await regRes.json();
-      if (!regRes.ok || !regData.success) {
-        throw new Error(regData.message || 'Registration failed');
+      if (!regRes.ok || !regData?.success) {
+        throw new Error(regData?.message || 'Registration failed');
       }
       const registrationId = regData?.data?.id || null;
 
-      // 2) Create Razorpay order (₹99 => 9900 paise)
+      // 2) Create Razorpay order (₹99 => 9900 paise [backend should handle paise])
       const orderRes = await fetch(`${API_BASE}/api/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: 99, registrationId }),
       });
       const order = await orderRes.json();
-      if (!orderRes.ok || !order.success || !order.id) {
-        throw new Error(order.message || 'Order creation failed');
+      if (!orderRes.ok || !order?.success || !order?.id) {
+        throw new Error(order?.message || 'Order creation failed');
       }
 
       if (!window.Razorpay) {
-        throw new Error('Razorpay SDK not loaded. Ensure the script is included in index.html');
+        throw new Error('Razorpay SDK not loaded. Ensure the script is included.');
       }
 
       // 3) Open Razorpay checkout
@@ -129,7 +143,7 @@ const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key_here"
               }),
             });
             const verify = await verifyRes.json();
-            if (verifyRes.ok && verify.success) {
+            if (verifyRes.ok && verify?.success) {
               setShowSuccess(true);
               setShowRegistration(false);
             } else {
@@ -156,21 +170,6 @@ const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key_here"
       setIsSubmitting(false);
     }
   };
-
-  /*
-    --- Kept original extra lines (commented) so no data is lost ---
-    These lines were duplicated outside the try/catch and caused syntax errors.
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-800">
@@ -202,7 +201,6 @@ const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key_here"
                 Pulse & Pause is organizing a live 90-minute experience designed to help you quiet the noise, take control of your thoughts, and feel like yourself again.
 Led by psychologist Miss. Neera Grover, you'll walk away with practical tools to handle anxiety, improve focus, and feel more grounded in everyday life.
 This isn’t theory  it’s real help, for real life.
-
               </p>
 
               <p className="text-lg text-gray-300">
@@ -369,80 +367,77 @@ This isn’t theory  it’s real help, for real life.
       </section>
       {/* ---------- Landing Page Additions ---------- */}
 
-{/* Hero Section */}
-<section className="text-center py-20 bg-gradient-to-r from-purple-900 via-purple-700 to-indigo-900 text-white">
-  <h1 className="text-5xl font-extrabold mb-6">
-    Ready to Transform Your Life?
-  </h1>
-  <p className="text-lg max-w-2xl mx-auto">
-    Join thousands who have already taken the first step towards better
-    mental health and well-being.
-  </p>
-</section>
+      {/* Hero Section */}
+      <section className="text-center py-20 bg-gradient-to-r from-purple-900 via-purple-700 to-indigo-900 text-white">
+        <h1 className="text-5xl font-extrabold mb-6">
+          Ready to Transform Your Life?
+        </h1>
+        <p className="text-lg max-w-2xl mx-auto">
+          Join thousands who have already taken the first step towards better
+          mental health and well-being.
+        </p>
+      </section>
 
-{/* Features Section */}
-<section className="px-10 py-10 bg-gradient-to-r from-purple-900 via-purple-700 to-indigo-900 text-white">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
-      <h3 className="text-xl font-semibold mb-2">🧠 Stress Management</h3>
-      <p>Practical techniques for daily stress relief.</p>
-    </div>
-    <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
-      <h3 className="text-xl font-semibold mb-2">💙 Emotional Resilience</h3>
-      <p>Build stronger mental and emotional strength.</p>
-    </div>
-    <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
-      <h3 className="text-xl font-semibold mb-2">🌀 Mindfulness Tools</h3>
-      <p>Evidence-based mindfulness practices.</p>
-    </div>
-    <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
-      <h3 className="text-xl font-semibold mb-2">⚖ Life Balance</h3>
-      <p>Achieve better work-life harmony.</p>
-    </div>
-  </div>
-</section>
-{/* Hero Section */}
+      {/* Features Section */}
+      <section className="px-10 py-10 bg-gradient-to-r from-purple-900 via-purple-700 to-indigo-900 text-white">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-2">🧠 Stress Management</h3>
+            <p>Practical techniques for daily stress relief.</p>
+          </div>
+          <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-2">💙 Emotional Resilience</h3>
+            <p>Build stronger mental and emotional strength.</p>
+          </div>
+          <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-2">🌀 Mindfulness Tools</h3>
+            <p>Evidence-based mindfulness practices.</p>
+          </div>
+          <div className="bg-purple-800 rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-2">⚖ Life Balance</h3>
+            <p>Achieve better work-life harmony.</p>
+          </div>
+        </div>
+      </section>
+      {/* Hero Section */}
 
+      {/* Contact Section */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 px-10 py-10 bg-purple-900 text-white">
+        <div className="bg-purple-800 rounded-2xl shadow-lg p-6 text-center">
+          <div className="text-4xl mb-4">📧</div>
+          <h3 className="text-xl font-bold">Email Us</h3>
+          <a
+            href="mailto:pulseandpause23@gmail.com"
+            className="text-blue-300 underline hover:text-blue-400"
+          >
+            pulseandpause23@gmail.com
+          </a>
+        </div>
 
-{/* Contact Section */}
+        <div className="bg-purple-800 rounded-2xl shadow-lg p-6 text-center">
+          <div className="text-4xl mb-4">📞</div>
+          <h3 className="text-xl font-bold">Call Us</h3>
+          <a
+            href="tel:+919603935352"
+            className="text-blue-300 underline hover:text-blue-400"
+          >
+            +919263935852
+          </a>
+        </div>
 
-<section className="grid grid-cols-1 md:grid-cols-3 gap-6 px-10 py-10 bg-purple-900 text-white">
-  
-  <div className="bg-purple-800 rounded-2xl shadow-lg p-6 text-center">
-    <div className="text-4xl mb-4">📧</div>
-    <h3 className="text-xl font-bold">Email Us</h3>
-    <a
-      href="mailto:pulseandpause23@gmail.com"
-      className="text-blue-300 underline hover:text-blue-400"
-    >
-      pulseandpause23@gmail.com
-    </a>
-  </div>
-
-  <div className="bg-purple-800 rounded-2xl shadow-lg p-6 text-center">
-    <div className="text-4xl mb-4">📞</div>
-    <h3 className="text-xl font-bold">Call Us</h3>
-    <a
-      href="tel:+919603935352"
-      className="text-blue-300 underline hover:text-blue-400"
-    >
-      +919263935852
-    </a>
-  </div>
-
-  <div className="bg-purple-800 rounded-2xl shadow-lg p-6 text-center">
-    <div className="text-4xl mb-4">💕</div>
-    <h3 className="text-xl font-bold">Instagram</h3>
-    <a
-      href="https://www.instagram.com/pulseandpause_?igsh=ZmVqeTE0ZHk3bmdi" 
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-300 underline hover:text-blue-400"
-    >
-      Pulse&Pause
-    </a>
-  </div>
-</section>
+        <div className="bg-purple-800 rounded-2xl shadow-lg p-6 text-center">
+          <div className="text-4xl mb-4">💕</div>
+          <h3 className="text-xl font-bold">Instagram</h3>
+          <a
+            href="https://www.instagram.com/pulseandpause_?igsh=ZmVqeTE0ZHk3bmdi" 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-300 underline hover:text-blue-400"
+          >
+            Pulse&Pause
+          </a>
+        </div>
+      </section>
 
       {/* Registration Modal */}
       {showRegistration && (
