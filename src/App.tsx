@@ -62,7 +62,7 @@ function App() {
     }));
   };
 
-  const API_BASE = import.meta.env.VITE_API_URL || "/api";
+  const API_BASE = import.meta.env.VITE_API_URL || "https://www.pulseandpause.in";
   const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_your_key_here';
 
   const handleSubmit = async (e: React.FormEvent) => {
