@@ -64,11 +64,9 @@ function App() {
 
  // Always point to backend, not frontend
 // Decide API base dynamically
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  (window.location.hostname === "localhost"
-    ? "http://localhost:5000" // local backend
-    : "https://pause-8nki.onrender.com"); // Render backend
+// Always point to backend, not frontend
+const API_BASE = "https://api.pulseandpause.in";
+
 
 const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key_here";
 
